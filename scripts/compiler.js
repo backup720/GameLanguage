@@ -53,7 +53,17 @@ let NAME = "";
             "repeat_times_wait": "repeat_times_wait",
             "cannot-wait-func": "Cannot use wait functions in functions",
             "clear": "clear",
-            "arguments-number": "Arguments should be number"
+            "arguments-number": "Arguments should be number",
+            "true": "true",
+            "false": "false",
+            "no-set": "Invalid __set__ argument",
+            "data-set": "data_set",
+            "data-set-first": "First argument of data_set should be type of string",
+            "data-set-second": "Second argument of data_set should not be empty",
+            "data-get": "data_get",
+            "data-get-error": "First argument of data_get should be type of string",
+            "data-remove": "data_remove",
+            "data-remove-error": "First argument of data_remove should be type of string"
         },
         tr_TR: {
             "Line": "Sat\u0131r",
@@ -94,7 +104,17 @@ let NAME = "";
             "repeat_times_wait": "kere_tekrarla_bekle",
             "cannot-wait-func": "Bekle fonksiyonlar\u0131 fonksiyonlar\u0131n\u0131n i\u00e7inde kullan\u0131lamaz",
             "clear": "temizle",
-            "arguments-number": "Arg\u00fcmanlar say\u0131 olmal\u0131"
+            "arguments-number": "Arg\u00fcmanlar say\u0131 olmal\u0131",
+            "true": "do\u011fru",
+            "false": "yanl\u0131\u015f",
+            "no-set": "Ge\u00e7ersiz __set__ arg\u00fcman\u0131",
+            "data-set": "veri_ayarla",
+            "data-set-first": "Veri_ayarla fonksiyonunun ilk arg\u00fcman\u0131 yaz\u0131 tipinde olmal\u0131",
+            "data-set-second": "Veri_ayarla fonksiyonunun ikinci arg\u00fcman\u0131 bo\u015f olmamal\u0131",
+            "data-get": "veri_al",
+            "data-get-error": "Veri_al fonksiyonunun ilk arg\u00fcman\u0131 yaz\u0131 tipinde olmal\u0131",
+            "data-remove": "veri_sil",
+            "data-remove-error": "Veri_sil fonksiyonunun ilk arg\u00fcman\u0131 yaz\u0131 tipinde olmal\u0131"
         }
     };
 
@@ -137,6 +157,7 @@ let NAME = "";
      * DONE: wait(seconds)
      * DONE: wait_ms(MILLISECONDS)
      * DONE: eval(STRING)
+     * TODO: add data functions
      * DONE: throw error when creates a variable named some of these
      * DONE: comments
      *
@@ -342,7 +363,7 @@ let NAME = "";
 
     const __set__ = generate_function(() => "__set__", (args, compiler) => {
         args = compiler.sets[args[0] * 1];
-        if (!args) return _err(" ", compiler);
+        if (!args) return _err(langs[lang]["no-set"], compiler);
         const name = args[0];
         let setting = args[1];
         const old_var = compiler.get_variable(name);
@@ -359,6 +380,24 @@ let NAME = "";
         compiler.set_variable(name, setting.map(i => i instanceof _Callable ? i.run(i.args, compiler) : i).map(i => i.string(i.args, compiler)).join(""), is_constant);
         return new _Null();
     });
+
+    const data_manager = {
+        data: JSON.parse(localStorage.getItem("_data") || "{}"),
+        set(data, value) {
+            data_manager.data[data] = value;
+            data_manager.save();
+        },
+        get(data) {
+            return data_manager.data[data];
+        },
+        remove(data) {
+            delete data_manager.data[data];
+            data_manager.save();
+        },
+        save() {
+            localStorage.setItem("_data", JSON.stringify(data_manager.data));
+        }
+    };
 
     const DEFAULT_FUNCTIONS = [
         __set__,
@@ -383,7 +422,7 @@ let NAME = "";
             if (isNaN(args)) return _err(langs[lang]["nan-error"], compiler);
             return new _Number(1 / Math.cos(args));
         }),
-        generate_function(() => "cot", (args) => {
+        generate_function(() => "cot", (args) => {""
             args = _eval(args[0]) * 1;
             if (isNaN(args)) return _err(langs[lang]["nan-error"], compiler);
             return new _Number(1 / Math.tan(args));
@@ -396,7 +435,7 @@ let NAME = "";
             if (!args[0] * 1) return _err(langs[lang]["wait-number"], compiler);
             return new Promise((a) => setTimeout(() => a(new _Null()), args[0] * 1 * 1000));
         }),
-        generate_function(() => langs[lang]["wait_ms"], (args) => {
+        generate_function(() => langs[lang]["wait-ms"], (args) => {
             if (!args[0] * 1) return _err(langs[lang]["wait-number"], compiler);
             return new Promise((a) => setTimeout(() => a(new _Null()), args[0] * 1));
         }),
@@ -410,14 +449,41 @@ let NAME = "";
             compile_lines(args.map(i => _eval(i)), () => {
             }, compiler);
             return new _Null();
+        }),
+        generate_function(() => langs[lang]["data-set"], (args, compiler) => {
+            args = args.map(i=> _eval(i));
+            if(typeof args[0] !== "string") return _err(langs[lang]["data-set-first"], compiler);
+            if(args[1] == null) return _err(langs[lang]["data-set-second"], compiler);
+            data_manager.set(args[0], args[1]);
+            return new _Null();
+        }),
+        generate_function(() => langs[lang]["data-get"], (args, compiler) => {
+            args = args.map(i=> _eval(i));
+            if(typeof args[0] !== "string") return _err(langs[lang]["data-get-error"], compiler);
+            let dat = data_manager.get(args[0]);
+            if(dat == null) return new _Null();
+            switch(typeof dat) {
+                case "string":
+                    return new _String(dat);
+                case "number":
+                    return new _Number(dat);
+                default:
+                    return new _Null();
+            }
+        }),
+        generate_function(() => langs[lang]["data-remove"], (args, compiler) => {
+            args = args.map(i=> _eval(i));
+            if(typeof args[0] !== "string") return _err(langs[lang]["data-remove-error"], compiler);
+            data_manager.remove(args[0]);
+            return new _Null();
         })
     ];
 
     const additions = ["pow", "floor", "sqrt", "abs"];
     /*** @type {{name: string, value: string}[]} */
     const initial_variables = [
-        {name: "true", value: "1"},
-        {name: "false", value: "0"},
+        {name: langs[lang]["true"], value: "1"},
+        {name: langs[lang]["false"], value: "0"},
         {name: "null", value: "0"}
     ];
     ["E", "LN10", "LN2", "LOG10E", "LOG2E", "PI", "SQRT1_2", "SQRT2"].forEach(i => initial_variables.push({
@@ -433,6 +499,9 @@ let NAME = "";
 
     additions.forEach(i => DEFAULT_FUNCTIONS.push(generate_math_function(i, () => langs[lang][i])));
     other_math.forEach(i => DEFAULT_FUNCTIONS.push(generate_math_function(i)));
+    document.defaults = {functions: DEFAULT_FUNCTIONS.map(i=> {
+        return {name: i.prototype.getName()};
+    }), variables: initial_variables, statements: ["if", "else", "repeat", "repeat_wait", "repeat_times", "repeat_times_wait", "repeat_always"].map(i=> {return {name: langs[lang][i]}})};
 
     /**
      * @param {string} str
@@ -666,15 +735,16 @@ let NAME = "";
             const res = actions[i].string(null, compiler);
             if (res instanceof Promise) await res;
         }
-        if (!compiler.working) return;
+        if (!compiler.working && !val) return;
         next();
     }
 
     function compile_lines(lines, next, compiler) {
         let index = -1;
-        const cmp = () => {
+        const cmp = (val = false) => {
             index++;
             if (lines.length <= index) return next();
+            if(val) compiler.working = true;
             compile_line(lines[index], cmp, compiler);
         }
         cmp();
@@ -685,8 +755,8 @@ let NAME = "";
             this.line = line;
         }
 
-        run(next, compiler) {
-            compile_line(this.line, next, compiler);
+        run(next, compiler, val) {
+            compile_line(this.line, next, compiler, val);
         }
     }
 
@@ -720,8 +790,8 @@ let NAME = "";
             this.lines.push(line);
         }
 
-        run(next, compiler) {
-            compile_lines(this.lines, next, compiler);
+        run(next, compiler, val) {
+            compile_lines(this.lines, next, compiler, val);
         }
     }
 
@@ -747,9 +817,9 @@ let NAME = "";
             return list;
         }
 
-        run(next, compiler) {
+        run(next, compiler, val) {
             let statement = compile_auto(this.statement, compiler).map(i => i.string(null, compiler)).join("");
-            if (_eval(statement)) super.run(next, compiler);
+            if (_eval(statement)) super.run(next, compiler, val);
             else next();
         }
     }
@@ -798,8 +868,8 @@ let NAME = "";
                 if (_eval(statement())) {
                     super.run(() => setTimeout(() => run(), 1), compiler);
                 } else {
-                    compiler.delete_loop(this, runtime_id);
-                    next();
+                    compiler.delete_loop(this, runtime_id, true);
+                    next(true);
                 }
             }
             run();
@@ -834,7 +904,7 @@ let NAME = "";
         }
     }
 
-    class RepeatTimesWaitLine extends RepeatTimesLine {
+    class RepeatTimesWaitLine extends MultipleLines {
         constructor(lines, times_raw) {
             super(lines);
             this.times_raw = times_raw;
@@ -848,8 +918,8 @@ let NAME = "";
                 if (times++ < this.times_raw) {
                     super.run(() => setTimeout(() => run(), 1), compiler);
                 } else {
-                    compiler.delete_loop(this, runtime_id);
-                    next();
+                    compiler.delete_loop(this, runtime_id, true);
+                    next(true);
                 }
             }
             run();
@@ -898,9 +968,9 @@ let NAME = "";
             this.loops[runtime_id] = line;
         }
 
-        delete_loop(line, runtime_id) {
+        delete_loop(line, runtime_id, val) {
             delete this.loops[runtime_id];
-            if (Object.keys(this.loops).length === 0 && this.working) {
+            if (Object.keys(this.loops).length === 0 && this.working && !val) {
                 this.working = false;
                 this.end_func();
             }

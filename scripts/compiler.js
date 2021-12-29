@@ -53,7 +53,9 @@ let NAME = "";
             "repeat_times_wait": "repeat_times_wait",
             "cannot-wait-func": "Cannot use wait functions in functions",
             "clear": "clear",
-            "arguments-number": "Arguments should be number"
+            "arguments-number": "Arguments should be number",
+            "true": "true",
+            "false": "false"
         },
         tr_TR: {
             "Line": "Sat\u0131r",
@@ -94,7 +96,9 @@ let NAME = "";
             "repeat_times_wait": "kere_tekrarla_bekle",
             "cannot-wait-func": "Bekle fonksiyonlar\u0131 fonksiyonlar\u0131n\u0131n i\u00e7inde kullan\u0131lamaz",
             "clear": "temizle",
-            "arguments-number": "Arg\u00fcmanlar say\u0131 olmal\u0131"
+            "arguments-number": "Arg\u00fcmanlar say\u0131 olmal\u0131",
+            "true": "doğru",
+            "false": "yanlış"
         }
     };
 
@@ -396,7 +400,7 @@ let NAME = "";
             if (!args[0] * 1) return _err(langs[lang]["wait-number"], compiler);
             return new Promise((a) => setTimeout(() => a(new _Null()), args[0] * 1 * 1000));
         }),
-        generate_function(() => langs[lang]["wait_ms"], (args) => {
+        generate_function(() => langs[lang]["wait-ms"], (args) => {
             if (!args[0] * 1) return _err(langs[lang]["wait-number"], compiler);
             return new Promise((a) => setTimeout(() => a(new _Null()), args[0] * 1));
         }),
@@ -416,8 +420,8 @@ let NAME = "";
     const additions = ["pow", "floor", "sqrt", "abs"];
     /*** @type {{name: string, value: string}[]} */
     const initial_variables = [
-        {name: "true", value: "1"},
-        {name: "false", value: "0"},
+        {name: langs[lang]["true"], value: "1"},
+        {name: langs[lang]["false"], value: "0"},
         {name: "null", value: "0"}
     ];
     ["E", "LN10", "LN2", "LOG10E", "LOG2E", "PI", "SQRT1_2", "SQRT2"].forEach(i => initial_variables.push({
@@ -433,6 +437,9 @@ let NAME = "";
 
     additions.forEach(i => DEFAULT_FUNCTIONS.push(generate_math_function(i, () => langs[lang][i])));
     other_math.forEach(i => DEFAULT_FUNCTIONS.push(generate_math_function(i)));
+    document.defaults = {functions: DEFAULT_FUNCTIONS.map(i=> {
+        return {name: i.prototype.getName()};
+    }), variables: initial_variables, statements: ["if", "else", "repeat", "repeat_wait", "repeat_times", "repeat_times_wait", "repeat_always"].map(i=> {return {name: langs[lang][i]}})};
 
     /**
      * @param {string} str
@@ -666,15 +673,16 @@ let NAME = "";
             const res = actions[i].string(null, compiler);
             if (res instanceof Promise) await res;
         }
-        if (!compiler.working) return;
+        if (!compiler.working && !val) return;
         next();
     }
 
     function compile_lines(lines, next, compiler) {
         let index = -1;
-        const cmp = () => {
+        const cmp = (val = false) => {
             index++;
             if (lines.length <= index) return next();
+            if(val) compiler.working = true;
             compile_line(lines[index], cmp, compiler);
         }
         cmp();
@@ -685,8 +693,8 @@ let NAME = "";
             this.line = line;
         }
 
-        run(next, compiler) {
-            compile_line(this.line, next, compiler);
+        run(next, compiler, val) {
+            compile_line(this.line, next, compiler, val);
         }
     }
 
@@ -720,8 +728,8 @@ let NAME = "";
             this.lines.push(line);
         }
 
-        run(next, compiler) {
-            compile_lines(this.lines, next, compiler);
+        run(next, compiler, val) {
+            compile_lines(this.lines, next, compiler, val);
         }
     }
 
@@ -747,9 +755,9 @@ let NAME = "";
             return list;
         }
 
-        run(next, compiler) {
+        run(next, compiler, val) {
             let statement = compile_auto(this.statement, compiler).map(i => i.string(null, compiler)).join("");
-            if (_eval(statement)) super.run(next, compiler);
+            if (_eval(statement)) super.run(next, compiler, val);
             else next();
         }
     }
@@ -798,8 +806,8 @@ let NAME = "";
                 if (_eval(statement())) {
                     super.run(() => setTimeout(() => run(), 1), compiler);
                 } else {
-                    compiler.delete_loop(this, runtime_id);
-                    next();
+                    compiler.delete_loop(this, runtime_id, true);
+                    next(true);
                 }
             }
             run();
@@ -834,7 +842,7 @@ let NAME = "";
         }
     }
 
-    class RepeatTimesWaitLine extends RepeatTimesLine {
+    class RepeatTimesWaitLine extends MultipleLines {
         constructor(lines, times_raw) {
             super(lines);
             this.times_raw = times_raw;
@@ -848,8 +856,8 @@ let NAME = "";
                 if (times++ < this.times_raw) {
                     super.run(() => setTimeout(() => run(), 1), compiler);
                 } else {
-                    compiler.delete_loop(this, runtime_id);
-                    next();
+                    compiler.delete_loop(this, runtime_id, true);
+                    next(true);
                 }
             }
             run();
@@ -898,9 +906,9 @@ let NAME = "";
             this.loops[runtime_id] = line;
         }
 
-        delete_loop(line, runtime_id) {
+        delete_loop(line, runtime_id, val) {
             delete this.loops[runtime_id];
-            if (Object.keys(this.loops).length === 0 && this.working) {
+            if (Object.keys(this.loops).length === 0 && this.working && !val) {
                 this.working = false;
                 this.end_func();
             }

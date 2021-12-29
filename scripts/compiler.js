@@ -63,7 +63,9 @@ let NAME = "";
             "data-get": "data_get",
             "data-get-error": "First argument of data_get should be type of string",
             "data-remove": "data_remove",
-            "data-remove-error": "First argument of data_remove should be type of string"
+            "data-remove-error": "First argument of data_remove should be type of string",
+            "console-key-down": "console_key_down",
+            "console-key-down-error": "First argument of console_key_down should be type of string"
         },
         tr_TR: {
             "Line": "Sat\u0131r",
@@ -114,7 +116,9 @@ let NAME = "";
             "data-get": "veri_al",
             "data-get-error": "Veri_al fonksiyonunun ilk arg\u00fcman\u0131 yaz\u0131 tipinde olmal\u0131",
             "data-remove": "veri_sil",
-            "data-remove-error": "Veri_sil fonksiyonunun ilk arg\u00fcman\u0131 yaz\u0131 tipinde olmal\u0131"
+            "data-remove-error": "Veri_sil fonksiyonunun ilk arg\u00fcman\u0131 yaz\u0131 tipinde olmal\u0131",
+            "console-key-down": "konsol_basılı_tuş",
+            "console-key-down-error": "Konsol_basılı_tuş fonksiyonunun ilk arg\u00fcman\u0131 yaz\u0131 tipinde olmal\u0131",
         }
     };
 
@@ -477,8 +481,30 @@ let NAME = "";
             if(typeof args[0] !== "string") return _err(langs[lang]["data-remove-error"], compiler);
             document._data_manager.remove(args[0]);
             return new _Null();
+        }),
+        generate_function(() => langs[lang]["console-key-down"], (args, compiler) => {
+            args = args.map(i=> _eval(i));
+            if(typeof args[0] !== "string") return _err(langs[lang]["console-key-down-error"], compiler);
+            return new _Number(console_held_keys[args[0]] ? 1 : 0);
         })
     ];
+
+    const console_div = document.getElementById("toolbar-console-text");
+    let console_held_keys = {};
+    if(console_div) {
+        let toggled_console = false;
+        addEventListener("click", ev => toggled_console = ev.path.some(i=> i.id === "toolbar-console-text"));
+        addEventListener("keydown", ev => {
+            if(!toggled_console) return;
+            console_held_keys[ev.key] = true;
+            console.log(ev.key)
+        });
+        addEventListener("keyup", ev => {
+            if(!toggled_console) return;
+            delete console_held_keys[ev.key]
+        });
+        addEventListener("blur", () => console_held_keys = {});
+    }
 
     const additions = ["pow", "floor", "sqrt", "abs"];
     /*** @type {{name: string, value: string}[]} */
@@ -1267,6 +1293,7 @@ let NAME = "";
         any_alive_process: () => Object.values(document._compilers).some(i => i.working === true),
         add_default_function: func => DEFAULT_FUNCTIONS.push(func),
         kill_all: () => {
+            console_held_keys = {};
             Object.values(document._compilers).forEach(i => i.working = false);
         }
     };

@@ -25,7 +25,7 @@
             </svg>
         </div>
         <img class="clear" onclick="clear_console()" src="assets/clear.png">
-        <div id="terminal-list" class="terminal-list" style="font-family: Consolas, serif" hidden></div>
+        <div id="toolbar-console-text" class="terminal-list" style="font-family: Consolas, serif" hidden></div>
     </div>
 </div>
 <div class="popup-container" id="popup" hidden>
@@ -55,11 +55,11 @@
         log_console(document._gamey.langs[lang]["stopped"], "rgb(255, 0, 0)");
     }
     const log_console = (msg, color) => {
-        const list = document.getElementById("terminal-list");
+        const list = document.getElementById("toolbar-console-text");
         list.innerHTML = list.innerHTML + "<span style='color: " + (color || "#ffffff") + "'>" + msg.toString().replaceAll("<", "&zwnj;<").replaceAll("<", "<&zwnj;") + "</span><br>";
         list.scrollTop = list.scrollHeight;
     }
-    const clear_console = () => document.getElementById("terminal-list").innerHTML = "";
+    const clear_console = () => document.getElementById("toolbar-console-text").innerHTML = "";
     const start_compile = () => {
         if (document._gamey.any_alive_process()) return;
         document._gamey.kill_all();
@@ -81,13 +81,13 @@
         document.getElementById("open_terminal").classList.add("hidden");
         document.getElementById("close_terminal").classList.remove("hidden");
         terminal.classList.add("terminal-open");
-        document.getElementById("terminal-list").hidden = undefined;
+        document.getElementById("toolbar-console-text").hidden = undefined;
     }
     const close_terminal = () => {
         document.getElementById("open_terminal").classList.remove("hidden");
         document.getElementById("close_terminal").classList.add("hidden");
         terminal.classList.remove("terminal-open");
-        document.getElementById("terminal-list").hidden = true;
+        document.getElementById("toolbar-console-text").hidden = true;
     }
     let held_keys = {};
     let terminal_shortcut = false;

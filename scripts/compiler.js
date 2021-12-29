@@ -380,24 +380,25 @@ let NAME = "";
         compiler.set_variable(name, setting.map(i => i instanceof _Callable ? i.run(i.args, compiler) : i).map(i => i.string(i.args, compiler)).join(""), is_constant);
         return new _Null();
     });
-
-    const data_manager = {
-        data: JSON.parse(localStorage.getItem("_data") || "{}"),
-        set(data, value) {
-            data_manager.data[data] = value;
-            data_manager.save();
-        },
-        get(data) {
-            return data_manager.data[data];
-        },
-        remove(data) {
-            delete data_manager.data[data];
-            data_manager.save();
-        },
-        save() {
-            localStorage.setItem("_data", JSON.stringify(data_manager.data));
-        }
-    };
+    setTimeout(() => {
+        document._data_manager = {
+            data: JSON.parse(localStorage.getItem("_data_" + PROJECT_NAME) || "{}"),
+            set(data, value) {
+                document._data_manager.data[data] = value;
+                document._data_manager.save();
+            },
+            get(data) {
+                return document._data_manager.data[data];
+            },
+            remove(data) {
+                delete document._data_manager.data[data];
+                document._data_manager.save();
+            },
+            save() {
+                localStorage.setItem("_data_" + PROJECT_NAME, JSON.stringify(document._data_manager.data));
+            }
+        };
+    }, 150);
 
     const DEFAULT_FUNCTIONS = [
         __set__,
@@ -454,13 +455,13 @@ let NAME = "";
             args = args.map(i=> _eval(i));
             if(typeof args[0] !== "string") return _err(langs[lang]["data-set-first"], compiler);
             if(args[1] == null) return _err(langs[lang]["data-set-second"], compiler);
-            data_manager.set(args[0], args[1]);
+            document._data_manager.set(args[0], args[1]);
             return new _Null();
         }),
         generate_function(() => langs[lang]["data-get"], (args, compiler) => {
             args = args.map(i=> _eval(i));
             if(typeof args[0] !== "string") return _err(langs[lang]["data-get-error"], compiler);
-            let dat = data_manager.get(args[0]);
+            let dat = document._data_manager.get(args[0]);
             if(dat == null) return new _Null();
             switch(typeof dat) {
                 case "string":
@@ -474,7 +475,7 @@ let NAME = "";
         generate_function(() => langs[lang]["data-remove"], (args, compiler) => {
             args = args.map(i=> _eval(i));
             if(typeof args[0] !== "string") return _err(langs[lang]["data-remove-error"], compiler);
-            data_manager.remove(args[0]);
+            document._data_manager.remove(args[0]);
             return new _Null();
         })
     ];
